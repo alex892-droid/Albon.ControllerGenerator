@@ -2,8 +2,8 @@ using ControllerGenerator;
 
 var builder = WebApplication.CreateBuilder(args);
 
-Type newType = ControllerGenerator.ControllerGenerator.CreateController<WeatherForcastService>(new DefaultRoutingConvention());
-dynamic instance = Activator.CreateInstance(newType);
+ControllerGenerator.ControllerGenerator.CreateController<WeatherForcastService>(new DefaultRoutingConvention());
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddMvc().AddApplicationPart(ControllerGenerator.ControllerGenerator.DynamicAssembly);

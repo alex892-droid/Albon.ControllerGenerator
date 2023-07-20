@@ -21,6 +21,22 @@ namespace ControllerGenerator
             {
                 route = $"{methodName}";
             }
+            else if (httpMethodAttributeType is HttpPutAttribute)
+            {
+                route = $"{methodName}";
+            }
+            else if (httpMethodAttributeType is HttpDeleteAttribute)
+            {
+                route = $"{methodName}";
+            }
+            else if (httpMethodAttributeType is HttpPatchAttribute)
+            {
+                route = $"{methodName}";
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
 
             return route;
         }
