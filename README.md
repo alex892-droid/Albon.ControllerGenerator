@@ -1,5 +1,5 @@
 # ControllerGenerator
-ControllerGenerator is a tool for dynamically creating an API Controller from a domain service at runtime.
+The ControllerGenerator is a useful tool for ASP.NET WebApps that enables dynamic creation of ControllerBase derived classes at runtime.
 
 ## Get Started
 1. Flag the methods of the service you want to exposes an API Controller with HttpMethodAttribute class (HttpGet, HttpPost,...)
