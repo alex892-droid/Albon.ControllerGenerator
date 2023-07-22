@@ -1,14 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Routing;
 using System.Reflection;
 
 namespace ControllerGenerator
 {
-    public class DefaultRoutingConvention : IRoutingConvention
+    internal class DefaultRoutingConvention : IRoutingConvention
     {
         public string GetRoute(string methodName, ParameterInfo[]? parameters, Attribute httpMethodAttributeType)
         {
-            string route = string.Empty;
+            string route;
             if(httpMethodAttributeType is HttpGetAttribute)
             {
                 route = $"{methodName}";

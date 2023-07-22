@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace ControllerGenerator
+namespace WebApp
 {
     public class WeatherForcastService
     {

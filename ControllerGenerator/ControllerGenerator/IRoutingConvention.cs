@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.Routing;
-using System.Reflection;
+﻿using System.Reflection;
 
 namespace ControllerGenerator
 {

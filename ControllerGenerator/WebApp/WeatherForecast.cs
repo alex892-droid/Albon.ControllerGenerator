@@ -1,4 +1,4 @@
-namespace ControllerGenerator
+namespace WebApp
 {
     public class WeatherForecast
     {

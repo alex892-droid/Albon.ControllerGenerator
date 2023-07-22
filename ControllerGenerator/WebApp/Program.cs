@@ -1,8 +1,9 @@
 using ControllerGenerator;
+using WebApp;
 
 var builder = WebApplication.CreateBuilder(args);
 
-ControllerGenerator.ControllerGenerator.CreateController<WeatherForcastService>(new DefaultRoutingConvention());
+ControllerGenerator.ControllerGenerator.CreateController<WeatherForcastService>();
 
 // Add services to the container.
 builder.Services.AddControllers();
