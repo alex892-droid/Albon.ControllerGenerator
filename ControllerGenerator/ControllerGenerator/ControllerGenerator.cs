@@ -9,7 +9,7 @@ namespace ControllerGenerator
     {
         public const string ModuleName = "DynamicModule";
 
-        public static AssemblyBuilder DynamicAssembly { get; set; }
+        public static AssemblyBuilder DynamicAssembly => CreateAssembly();
 
         public static ModuleBuilder ModuleBuilder { get; set; }
 
@@ -38,10 +38,14 @@ namespace ControllerGenerator
             return typeBuilder.CreateType();
         }
 
-        private static TypeBuilder CreateTypeBuilder<TService>(INamingConvention namingConvention)
+        private static AssemblyBuilder CreateAssembly()
         {
             AssemblyName assemblyName = new AssemblyName(nameof(DynamicAssembly));
-            DynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+            return AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+        }
+
+        private static TypeBuilder CreateTypeBuilder<TService>(INamingConvention namingConvention)
+        {
             ModuleBuilder = DynamicAssembly.DefineDynamicModule(ModuleName);
 
             AppDomain.CurrentDomain.AssemblyResolve += (sender, e) =>
