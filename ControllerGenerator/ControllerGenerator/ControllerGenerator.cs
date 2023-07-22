@@ -151,10 +151,6 @@ namespace ControllerGenerator
             {
                 SetMethodBuilderWithDTO(typeBuilder, originalMethod, routingConvention, namingConvention);
             }
-            else
-            {
-                throw new NotImplementedException();
-            }
         }
 
         private static void SetMethodBuilderWithParameters(TypeBuilder typeBuilder, MethodInfo originalMethod, IRoutingConvention routingConvention, INamingConvention namingConvention)
