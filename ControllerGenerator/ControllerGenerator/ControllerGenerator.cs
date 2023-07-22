@@ -9,8 +9,21 @@ namespace ControllerGenerator
     {
         public const string ModuleName = "DynamicModule";
 
-        public static AssemblyBuilder DynamicAssembly => CreateAssembly();
+        private static AssemblyBuilder _dynamicAssembly;
 
+        public static AssemblyBuilder DynamicAssembly
+        {
+            get
+            {
+                if(_dynamicAssembly == null)
+                {
+                    _dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(nameof(DynamicAssembly)), AssemblyBuilderAccess.Run);
+                }
+
+                return _dynamicAssembly;
+            }
+        }
+  
         public static ModuleBuilder ModuleBuilder { get; set; }
 
         public static Type CreateController<TService>()
@@ -36,12 +49,6 @@ namespace ControllerGenerator
             typeBuilder.SetParent(typeof(ControllerBase));
             AddRedirectionMethodsFromType<TService>(typeBuilder, routingConvention, namingConvention);
             return typeBuilder.CreateType();
-        }
-
-        private static AssemblyBuilder CreateAssembly()
-        {
-            AssemblyName assemblyName = new AssemblyName(nameof(DynamicAssembly));
-            return AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         }
 
         private static TypeBuilder CreateTypeBuilder<TService>(INamingConvention namingConvention)
