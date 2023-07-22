@@ -17,7 +17,7 @@ The ControllerGenerator is a useful tool for ASP.NET WebApps that enables dynami
    You can also do both by calling ```CreateController<TService>(IRoutingConvention routingConvention, INamingConvention namingConvention)```.
    If you don't implement these interfaces, the ControllerGenerator will use default convention.
    
-4. Add the dynamic assembly to the ApplicationBuilder
+4. Add the dynamic assembly to the WebApplicationBuilder
    ```
    var applicationBuilder = WebApplication.CreateBuilder(args);
    applicationBuilder.Services.AddMvc().AddApplicationPart(ControllerGenerator.ControllerGenerator.DynamicAssembly);
