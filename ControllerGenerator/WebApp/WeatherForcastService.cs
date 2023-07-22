@@ -9,6 +9,7 @@ namespace WebApp
         "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
         };
 
+        [HttpGet]
         public IEnumerable<WeatherForecast> GetWeatherForecastGet1()
         {
             return Enumerable.Range(1, 5).Select(index => new WeatherForecast
