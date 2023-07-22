@@ -12,6 +12,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>controller; generator; asp.net; core;</PackageTags>
     <PackAsTool>False</PackAsTool>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
