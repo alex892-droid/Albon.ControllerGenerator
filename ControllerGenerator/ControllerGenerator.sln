@@ -5,7 +5,7 @@ VisualStudioVersion = 17.5.33414.496
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebApp", "WebApp\WebApp.csproj", "{8C749E1A-3E19-4889-AA20-136CCB2554AD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ControllerGenerator", "ControllerGenerator\ControllerGenerator.csproj", "{221C98C8-A298-41F9-BF7C-4B218CC14E62}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Albon.ControllerGenerator", "ControllerGenerator\Albon.ControllerGenerator.csproj", "{221C98C8-A298-41F9-BF7C-4B218CC14E62}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ControllerGenerator\ControllerGenerator.csproj" />
+    <ProjectReference Include="..\ControllerGenerator\Albon.ControllerGenerator.csproj" />
   </ItemGroup>
 
 </Project>
