@@ -12,14 +12,17 @@ The ControllerGenerator is a useful tool for ASP.NET WebApps that enables dynami
    public static Type CreateController<TService>();
    ```
 
-   You can implement your own routing convention by implementing ```IRoutingConvention``` and call ```CreateController<TService>(IRoutingConvention routingConvention)```.
-
-3. Add the dynamic assembly to the ApplicationBuilder
+   You can implement your own routing convention by implementing ```IRoutingConvention``` and call ```CreateController<TService>(IRoutingConvention routingConvention)```. It permits to choose how the route of your WebApp is defined.
+   You can also implement your own naming convention by implementing ```INamingConvention``` and call ```CreateController<TService>(INamingConvention namingConvention)```. It permits to choose how the name of services of your WebApp is defined.
+   You can also do both by calling ```CreateController<TService>(IRoutingConvention routingConvention, INamingConvention namingConvention)```.
+   If you don't implement these interfaces, the ControllerGenerator will use default convention.
+   
+4. Add the dynamic assembly to the ApplicationBuilder
    ```
    var applicationBuilder = WebApplication.CreateBuilder(args);
    applicationBuilder.Services.AddMvc().AddApplicationPart(ControllerGenerator.ControllerGenerator.DynamicAssembly);
    ```
-4. Enjoy !
+5. Enjoy !
 
 ## Why use it
 The ControllerGenerator is a useful tool for ASP.NET WebApps that enables dynamic creation of ControllerBase derived classes at runtime. This approach offers several benefits and use cases:
