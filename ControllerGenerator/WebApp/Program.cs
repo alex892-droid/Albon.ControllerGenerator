@@ -4,6 +4,7 @@ using WebApp;
 var builder = WebApplication.CreateBuilder(args);
 
 ControllerGenerator.ControllerGenerator.CreateController<WeatherForcastService>();
+ControllerGenerator.ControllerGenerator.CreateController<WeatherForcastService2>();
 
 // Add services to the container.
 builder.Services.AddControllers();

@@ -18,13 +18,40 @@ namespace ControllerGenerator
                 if(_dynamicAssembly == null)
                 {
                     _dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(nameof(DynamicAssembly)), AssemblyBuilderAccess.Run);
+                    AppDomain.CurrentDomain.AssemblyResolve += (sender, e) =>
+                    {
+                        AssemblyName requestedName = new AssemblyName(e.Name);
+
+                        if (requestedName.Name == nameof(_dynamicAssembly))
+                        {
+                            // Load assembly from startup path
+                            return _dynamicAssembly;
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    };
                 }
 
                 return _dynamicAssembly;
             }
         }
-  
-        public static ModuleBuilder ModuleBuilder { get; set; }
+
+        private static ModuleBuilder _moduleBuilder;
+
+        public static ModuleBuilder ModuleBuilder
+        {
+            get
+            {
+                if (_moduleBuilder == null)
+                {
+                    _moduleBuilder = DynamicAssembly.DefineDynamicModule(ModuleName);
+                }
+
+                return _moduleBuilder;
+            }
+        }
 
         public static Type CreateController<TService>()
         {
@@ -43,34 +70,12 @@ namespace ControllerGenerator
 
         public static Type CreateController<TService>(IRoutingConvention routingConvention, INamingConvention namingConvention)
         {
-            TypeBuilder typeBuilder = CreateTypeBuilder<TService>(namingConvention);
+            TypeBuilder typeBuilder = ModuleBuilder.DefineType(namingConvention.GetControllerName<TService>(), TypeAttributes.Public | TypeAttributes.Class);
             SetApiControllerAttribute(typeBuilder);
             SetControllerRouteAttribute(typeBuilder);
             typeBuilder.SetParent(typeof(ControllerBase));
             AddRedirectionMethodsFromType<TService>(typeBuilder, routingConvention, namingConvention);
             return typeBuilder.CreateType();
-        }
-
-        private static TypeBuilder CreateTypeBuilder<TService>(INamingConvention namingConvention)
-        {
-            ModuleBuilder = DynamicAssembly.DefineDynamicModule(ModuleName);
-
-            AppDomain.CurrentDomain.AssemblyResolve += (sender, e) =>
-            {
-                AssemblyName requestedName = new AssemblyName(e.Name);
-
-                if (requestedName.Name == nameof(DynamicAssembly))
-                {
-                    // Load assembly from startup path
-                    return DynamicAssembly;
-                }
-                else
-                {
-                    return null;
-                }
-            };
-
-            return ModuleBuilder.DefineType(namingConvention.GetControllerName<TService>(), TypeAttributes.Public | TypeAttributes.Class);
         }
 
         private static void AddRedirectionMethodsFromType<T>(TypeBuilder typeBuilder, IRoutingConvention routingConvention, INamingConvention namingConvention)
