@@ -7,7 +7,15 @@ namespace ControllerGenerator
 {
     public static class ControllerGenerator
     {
-        public const string ModuleName = "DynamicModule";
+        private const string ModuleName = "DynamicModule";
+
+        private static FieldBuilder ServiceField { get; set; }
+
+        private static TypeBuilder ControllerType { get; set; }
+
+        private static INamingConvention NamingConvention { get; set; }
+
+        private static IRoutingConvention RoutingConvention { get; set; }
 
         private static AssemblyBuilder _dynamicAssembly;
 
@@ -15,7 +23,7 @@ namespace ControllerGenerator
         {
             get
             {
-                if(_dynamicAssembly == null)
+                if (_dynamicAssembly == null)
                 {
                     _dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(nameof(DynamicAssembly)), AssemblyBuilderAccess.Run);
                     AppDomain.CurrentDomain.AssemblyResolve += (sender, e) =>
@@ -70,20 +78,45 @@ namespace ControllerGenerator
 
         public static Type CreateController<TService>(IRoutingConvention routingConvention, INamingConvention namingConvention)
         {
-            TypeBuilder typeBuilder = ModuleBuilder.DefineType(namingConvention.GetControllerName<TService>(), TypeAttributes.Public | TypeAttributes.Class);
-            SetApiControllerAttribute(typeBuilder);
-            SetControllerRouteAttribute(typeBuilder);
-            typeBuilder.SetParent(typeof(ControllerBase));
-            AddRedirectionMethodsFromType<TService>(typeBuilder, routingConvention, namingConvention);
-            return typeBuilder.CreateType();
+            RoutingConvention = routingConvention;
+            NamingConvention = namingConvention;
+
+            ControllerType = ModuleBuilder.DefineType(NamingConvention.GetControllerName<TService>(), TypeAttributes.Public | TypeAttributes.Class);
+
+            SetApiControllerAttribute();
+            SetControllerRouteAttribute();
+            ControllerType.SetParent(typeof(ControllerBase));
+            ServiceField = ControllerType.DefineField("_service", typeof(TService), FieldAttributes.Private);
+            CreateControllerConstructor<TService>();
+            AddRedirectionMethodsFromType<TService>();
+
+            return ControllerType.CreateType();
         }
 
-        private static void AddRedirectionMethodsFromType<T>(TypeBuilder typeBuilder, IRoutingConvention routingConvention, INamingConvention namingConvention)
+        private static void CreateControllerConstructor<TService>()
+        {
+            var serviceConstructorParameters = typeof(TService).GetConstructors().FirstOrDefault().GetParameters().Select(x => x.ParameterType).ToArray();
+            // Create a constructor that takes an instance of TService and stores it in the field
+            ConstructorBuilder constructor = ControllerType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, serviceConstructorParameters);
+            ILGenerator ctorIL = constructor.GetILGenerator();
+            ctorIL.Emit(OpCodes.Ldarg_0);                  // Load "this" onto the stack
+
+            int i = 1;
+            foreach (var param in serviceConstructorParameters)
+            {
+                ctorIL.Emit(OpCodes.Ldarg, i++);                  // Load the TService parameter onto the stack
+            }
+            ctorIL.Emit(OpCodes.Newobj, typeof(TService).GetConstructors().FirstOrDefault());
+            ctorIL.Emit(OpCodes.Stfld, ServiceField);      // Store the TService parameter in the private field
+            ctorIL.Emit(OpCodes.Ret);
+        }
+
+        private static void AddRedirectionMethodsFromType<T>()
         {
             var methods = GetMethodInfosFromType<T>();
             foreach (MethodInfo method in methods)
             {
-                AddRedirectionMethod(typeBuilder, method, routingConvention, namingConvention);
+                AddRedirectionMethod(method);
             }
         }
 
@@ -99,6 +132,7 @@ namespace ControllerGenerator
         {
             ILGenerator ilGenerator = methodBuilder.GetILGenerator();
             ilGenerator.Emit(OpCodes.Ldarg_0);
+            ilGenerator.Emit(OpCodes.Ldfld, ServiceField);
             // Load each parameter onto the stack
             for (int i = 1; i < parameterTypes.Length + 1; i++)
             {
@@ -114,6 +148,7 @@ namespace ControllerGenerator
         {
             ILGenerator ilGenerator = methodBuilder.GetILGenerator();
             ilGenerator.Emit(OpCodes.Ldarg_0);
+            ilGenerator.Emit(OpCodes.Ldfld, ServiceField);
 
             // Create a local variable to store the DTO instance
             var dtoLocal = ilGenerator.DeclareLocal(DTO);
@@ -145,37 +180,37 @@ namespace ControllerGenerator
 
         }
 
-        private static void AddRedirectionMethod(TypeBuilder typeBuilder, MethodInfo originalMethod, IRoutingConvention routingConvention, INamingConvention namingConvention)
+        private static void AddRedirectionMethod(MethodInfo originalMethod)
         {
             if (originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute)) is HttpGetAttribute)
             {
-                SetMethodBuilderWithParameters(typeBuilder, originalMethod, routingConvention, namingConvention);
+                SetMethodBuilderWithParameters(originalMethod);
             }
             else if (originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute)) is HttpPostAttribute)
             {
-                SetMethodBuilderWithDTO(typeBuilder, originalMethod, routingConvention, namingConvention);
+                SetMethodBuilderWithDTO(originalMethod);
             }
             else if (originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute)) is HttpPutAttribute)
             {
-                SetMethodBuilderWithDTO(typeBuilder, originalMethod, routingConvention, namingConvention);
+                SetMethodBuilderWithDTO(originalMethod);
             }
             else if (originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute)) is HttpDeleteAttribute)
             {
-                SetMethodBuilderWithDTO(typeBuilder, originalMethod, routingConvention, namingConvention);
+                SetMethodBuilderWithDTO(originalMethod);
             }
             else if (originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute)) is HttpPatchAttribute)
             {
-                SetMethodBuilderWithDTO(typeBuilder, originalMethod, routingConvention, namingConvention);
+                SetMethodBuilderWithDTO(originalMethod);
             }
         }
 
-        private static void SetMethodBuilderWithParameters(TypeBuilder typeBuilder, MethodInfo originalMethod, IRoutingConvention routingConvention, INamingConvention namingConvention)
+        private static void SetMethodBuilderWithParameters(MethodInfo originalMethod)
         {
             var parameterTypes = originalMethod.GetParameters().Select(x => x.ParameterType).ToArray();
             var parameterNames = originalMethod.GetParameters().Select(x => x.Name).ToArray();
 
-            MethodBuilder methodBuilder = typeBuilder.DefineMethod(
-                namingConvention.GetMethodName(originalMethod.Name),
+            MethodBuilder methodBuilder = ControllerType.DefineMethod(
+                NamingConvention.GetMethodName(originalMethod.Name),
                 originalMethod.Attributes,
                 originalMethod.CallingConvention,
                 originalMethod.ReturnType,
@@ -200,10 +235,10 @@ namespace ControllerGenerator
 
             EmitILRedirectionFromParameters(methodBuilder, parameterTypes, originalMethod);
             SetHttpMethodAttribute(originalMethod, methodBuilder);
-            SetRouteAttribute(methodBuilder, originalMethod, routingConvention, namingConvention);
+            SetRouteAttribute(methodBuilder, originalMethod);
         }
 
-        private static void SetMethodBuilderWithDTO(TypeBuilder typeBuilder, MethodInfo originalMethod, IRoutingConvention routingConvention, INamingConvention namingConvention)
+        private static void SetMethodBuilderWithDTO(MethodInfo originalMethod)
         {
             var parameterTypes = originalMethod.GetParameters();
 
@@ -211,8 +246,8 @@ namespace ControllerGenerator
             Type DTOType;
             if (parameterTypes.Length == 0)
             {
-                methodBuilder = typeBuilder.DefineMethod(
-                    namingConvention.GetMethodName(originalMethod.Name),
+                methodBuilder = ControllerType.DefineMethod(
+                    NamingConvention.GetMethodName(originalMethod.Name),
                     originalMethod.Attributes,
                     originalMethod.CallingConvention,
                     originalMethod.ReturnType,
@@ -223,9 +258,9 @@ namespace ControllerGenerator
             }
             else
             {
-                DTOType = CreateDTO(originalMethod, namingConvention);
-                methodBuilder = typeBuilder.DefineMethod(
-                    namingConvention.GetMethodName(originalMethod.Name),
+                DTOType = CreateDTO(originalMethod);
+                methodBuilder = ControllerType.DefineMethod(
+                    NamingConvention.GetMethodName(originalMethod.Name),
                     originalMethod.Attributes,
                     originalMethod.CallingConvention,
                     originalMethod.ReturnType,
@@ -240,12 +275,12 @@ namespace ControllerGenerator
             }
 
             SetHttpMethodAttribute(originalMethod, methodBuilder);
-            SetRouteAttribute(methodBuilder, originalMethod, routingConvention, namingConvention);
+            SetRouteAttribute(methodBuilder, originalMethod);
         }
 
-        public static Type CreateDTO(MethodInfo methodInfo, INamingConvention namingConvention)
+        public static Type CreateDTO(MethodInfo methodInfo)
         {
-            TypeBuilder typeBuilder = ModuleBuilder.DefineType(namingConvention.GetDTOName(methodInfo.Name), TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Serializable);
+            TypeBuilder typeBuilder = ModuleBuilder.DefineType(NamingConvention.GetDTOName(methodInfo.Name), TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Serializable);
 
             var parameters = methodInfo.GetParameters();
             foreach (var parameter in parameters)
@@ -298,24 +333,24 @@ namespace ControllerGenerator
             parameterBuilder.SetCustomAttribute(fromRouteAttributeBuilder);
         }
 
-        private static void SetApiControllerAttribute(TypeBuilder typeBuilder)
+        private static void SetApiControllerAttribute()
         {
             ConstructorInfo apiControllerAttributeCtor = typeof(ApiControllerAttribute).GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder apiControllerAttributeBuilder = new CustomAttributeBuilder(apiControllerAttributeCtor, new object[0]);
-            typeBuilder.SetCustomAttribute(apiControllerAttributeBuilder);
+            ControllerType.SetCustomAttribute(apiControllerAttributeBuilder);
         }
 
-        private static void SetControllerRouteAttribute(TypeBuilder typeBuilder)
+        private static void SetControllerRouteAttribute()
         {
             ConstructorInfo routeAttributeCtor = typeof(RouteAttribute).GetConstructor(new[] { typeof(string) });
             CustomAttributeBuilder routeAttributeBuilder = new CustomAttributeBuilder(routeAttributeCtor, new object[] { "[controller]" });
-            typeBuilder.SetCustomAttribute(routeAttributeBuilder);
+            ControllerType.SetCustomAttribute(routeAttributeBuilder);
         }
 
-        private static void SetRouteAttribute(MethodBuilder methodBuilder, MethodInfo originalMethod, IRoutingConvention routingConvention, INamingConvention namingConvention)
+        private static void SetRouteAttribute(MethodBuilder methodBuilder, MethodInfo originalMethod)
         {
             ConstructorInfo routeAttributeCtor = typeof(RouteAttribute).GetConstructor(new[] { typeof(string) });
-            CustomAttributeBuilder routeAttributeBuilder = new CustomAttributeBuilder(routeAttributeCtor, new object[] { routingConvention.GetRoute(namingConvention.GetMethodName(originalMethod.Name), originalMethod.GetParameters(), originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute))) });
+            CustomAttributeBuilder routeAttributeBuilder = new CustomAttributeBuilder(routeAttributeCtor, new object[] { RoutingConvention.GetRoute(NamingConvention.GetMethodName(originalMethod.Name), originalMethod.GetParameters(), originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute))) });
             methodBuilder.SetCustomAttribute(routeAttributeBuilder);
         }
 

@@ -9,16 +9,17 @@ namespace WebApp
         "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
         };
 
+        private IWeatherForecast WeatherForcast { get; set; }
+
+        public WeatherForcastService(IWeatherForecast weatherForecast) 
+        {
+            WeatherForcast = weatherForecast;
+        }
+
         [HttpGet]
         public IEnumerable<WeatherForecast> GetWeatherForecastGet1()
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
-            {
-                Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                TemperatureC = Random.Shared.Next(-20, 55),
-                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-            })
-            .ToArray();
+            return WeatherForcast.GetWeatherForecastGet10();
         }
 
         [HttpGet]

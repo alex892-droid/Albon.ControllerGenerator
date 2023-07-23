@@ -2,7 +2,7 @@
 
 namespace WebApp
 {
-    public class WeatherForcastService2
+    public class WeatherForcastService2 : IWeatherForecast
     {
         private static readonly string[] Summaries = new[]
         {
