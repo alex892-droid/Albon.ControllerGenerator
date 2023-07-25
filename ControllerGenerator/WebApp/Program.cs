@@ -1,14 +1,14 @@
-using ControllerGenerator;
+using Albon.ControllerGenerator;
 using WebApp;
 
 var builder = WebApplication.CreateBuilder(args);
 
-ControllerGenerator.ControllerGenerator.CreateController<WeatherForcastService>();
-ControllerGenerator.ControllerGenerator.CreateController<WeatherForcastService2>();
+ControllerGenerator.CreateController<WeatherForcastService>();
+ControllerGenerator.CreateController<WeatherForcastService2>();
 
 // Add services to the container.
 builder.Services.AddControllers();
-builder.Services.AddMvc().AddApplicationPart(ControllerGenerator.ControllerGenerator.DynamicAssembly);
+builder.Services.AddMvc().AddApplicationPart(Albon.ControllerGenerator.ControllerGenerator.DynamicAssembly);
 builder.Services.AddScoped<IWeatherForecast, WeatherForcastService2>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

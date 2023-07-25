@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AttributeSharedKernel;
+using Microsoft.AspNetCore.Mvc;
 
 namespace WebApp
 {
@@ -34,6 +35,7 @@ namespace WebApp
             .ToArray();
         }
 
+        [SignatureVerified]
         [HttpGet]
         public IEnumerable<WeatherForecast> GetWeatherForecastGet3(string test, string test2)
         {
@@ -46,6 +48,7 @@ namespace WebApp
             .ToArray();
         }
 
+        [SignatureVerified]
         [HttpPost]
         public IEnumerable<WeatherForecast> GetWeatherForecastPost1()
         {
@@ -70,6 +73,7 @@ namespace WebApp
             .ToArray();
         }
 
+        [SignatureVerified]
         [HttpPost]
         public IEnumerable<WeatherForecast> GetWeatherForecastPost3(string test, string test2)
         {

@@ -1,4 +1,4 @@
-﻿namespace ControllerGenerator
+﻿namespace Albon.ControllerGenerator
 {
     internal class DefaultNamingConvention : INamingConvention
     {
