@@ -10,44 +10,52 @@ using System.Threading.Tasks;
 
 namespace Albon.ControllerGenerator
 {
-    internal class AttributeSetter
+    internal class AttributeSetter : IAttributeSetter
     {
-        internal static void SetFromRouteAttribute(ParameterBuilder parameterBuilder)
+        public IRoutingConvention RoutingConvention { get; set; }
+        public INamingConvention NamingConvention { get; set; }
+        public AttributeSetter(IRoutingConvention routingConvention, INamingConvention namingConvention) 
+        {
+            RoutingConvention = routingConvention;
+            NamingConvention = namingConvention;
+        }
+
+        public void SetFromRouteAttribute(ParameterBuilder parameterBuilder)
         {
             ConstructorInfo fromRouteAttributeCtor = typeof(FromRouteAttribute).GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder fromRouteAttributeBuilder = new CustomAttributeBuilder(fromRouteAttributeCtor, new object[0]);
             parameterBuilder.SetCustomAttribute(fromRouteAttributeBuilder);
         }
 
-        internal static void SetFromBodyAttribute(ParameterBuilder parameterBuilder)
+        public void SetFromBodyAttribute(ParameterBuilder parameterBuilder)
         {
             ConstructorInfo fromRouteAttributeCtor = typeof(FromBodyAttribute).GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder fromRouteAttributeBuilder = new CustomAttributeBuilder(fromRouteAttributeCtor, new object[0]);
             parameterBuilder.SetCustomAttribute(fromRouteAttributeBuilder);
         }
 
-        internal static void SetApiControllerAttribute(TypeBuilder controllerType)
+        public void SetApiControllerAttribute(TypeBuilder controllerType)
         {
             ConstructorInfo apiControllerAttributeCtor = typeof(ApiControllerAttribute).GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder apiControllerAttributeBuilder = new CustomAttributeBuilder(apiControllerAttributeCtor, new object[0]);
             controllerType.SetCustomAttribute(apiControllerAttributeBuilder);
         }
 
-        internal static void SetControllerRouteAttribute(TypeBuilder controllerType)
+        public void SetControllerRouteAttribute(TypeBuilder controllerType)
         {
             ConstructorInfo routeAttributeCtor = typeof(RouteAttribute).GetConstructor(new[] { typeof(string) });
             CustomAttributeBuilder routeAttributeBuilder = new CustomAttributeBuilder(routeAttributeCtor, new object[] { "[controller]" });
             controllerType.SetCustomAttribute(routeAttributeBuilder);
         }
 
-        internal static void SetRouteAttribute(MethodBuilder methodBuilder, MethodInfo originalMethod, IRoutingConvention routingConvention, INamingConvention namingConvention, bool signed)
+        public void SetRouteAttribute(MethodBuilder methodBuilder, MethodInfo originalMethod, bool signed)
         {
             ConstructorInfo routeAttributeCtor = typeof(RouteAttribute).GetConstructor(new[] { typeof(string) });
-            CustomAttributeBuilder routeAttributeBuilder = new CustomAttributeBuilder(routeAttributeCtor, new object[] { routingConvention.GetRoute(namingConvention.GetMethodName(originalMethod.Name), originalMethod.GetParameters(), originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute)), signed) });
+            CustomAttributeBuilder routeAttributeBuilder = new CustomAttributeBuilder(routeAttributeCtor, new object[] { RoutingConvention.GetRoute(NamingConvention.GetMethodName(originalMethod.Name), originalMethod.GetParameters(), originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute)), signed) });
             methodBuilder.SetCustomAttribute(routeAttributeBuilder);
         }
 
-        internal static void SetHttpMethodAttribute(MethodInfo originalMethod, MethodBuilder methodBuilder)
+        public void SetHttpMethodAttribute(MethodInfo originalMethod, MethodBuilder methodBuilder)
         {
             ConstructorInfo httpPostAttributeCtor = originalMethod.GetCustomAttribute(typeof(HttpMethodAttribute)).GetType().GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder httpPostAttributeBuilder = new CustomAttributeBuilder(httpPostAttributeCtor, new object[0]);

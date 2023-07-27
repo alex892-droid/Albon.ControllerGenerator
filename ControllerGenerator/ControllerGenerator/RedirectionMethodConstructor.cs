@@ -1,20 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
+﻿using System.Reflection.Emit;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Runtime.Serialization;
-using Newtonsoft.Json;
-using System.Runtime.CompilerServices;
 
 namespace Albon.ControllerGenerator
 {
-    internal static class ILEmitter
+    internal class RedirectionMethodConstructor : IRedirectionMethodConstructor
     {
-        internal static void EmitILRedirectionFromParameters(MethodBuilder methodBuilder, Type[] parameterTypes, MethodInfo originalMethod, FieldBuilder serviceField, ISignatureVerifier signatureVerifier, bool isSigned)
+        internal ISignatureVerifier SignatureVerifier { get; set; }
+
+        internal RedirectionMethodConstructor(ISignatureVerifier signatureVerifier)
+        {
+            SignatureVerifier = signatureVerifier;
+        }
+
+        public void CreateRedirectionMethodFromParameters(MethodBuilder methodBuilder, Type[] parameterTypes, MethodInfo originalMethod, FieldBuilder serviceField, bool isSigned)
         {
             ILGenerator ilGenerator = methodBuilder.GetILGenerator();
             int nbParam = parameterTypes.Length;
@@ -48,7 +46,7 @@ namespace Albon.ControllerGenerator
 
                 ilGenerator.Emit(OpCodes.Ldarg, nbParam + 2);
                 ilGenerator.Emit(OpCodes.Ldarg, nbParam + 1);
-                ilGenerator.Emit(OpCodes.Call, signatureVerifier.GetType().GetMethod("VerifySignature", new[] { typeof(string), typeof(string), typeof(string) }));
+                ilGenerator.Emit(OpCodes.Call, SignatureVerifier.GetType().GetMethod("VerifySignature", new[] { typeof(string), typeof(string), typeof(string) }));
             }
 
             // Mark the label where verification ends and original method call starts
@@ -66,10 +64,16 @@ namespace Albon.ControllerGenerator
             ilGenerator.Emit(OpCodes.Ret);
         }
 
-        internal static void EmitILRedirectionFromDTO(MethodBuilder methodBuilder, Type DTO, MethodInfo originalMethod, FieldBuilder serviceField, ISignatureVerifier signatureVerifier, bool isSigned)
+        public void CreateRedirectionMethodFromDTO(MethodBuilder methodBuilder, Type DTO, MethodInfo originalMethod, FieldBuilder serviceField, bool isSigned)
         {
             ILGenerator ilGenerator = methodBuilder.GetILGenerator();
 
+            if (isSigned)
+            {
+                ilGenerator.Emit(OpCodes.Ldarg_0);
+                ilGenerator.Emit(OpCodes.Ldarg_1); ; // Assuming 1 is the index of the DTO
+                ilGenerator.Emit(OpCodes.Call, SignatureVerifier.GetType().GetMethod("VerifySignature", new[] { typeof(AbstractSignedDTO) }));
+            }
             ilGenerator.Emit(OpCodes.Ldarg_0);
             ilGenerator.Emit(OpCodes.Ldfld, serviceField);
 
@@ -79,20 +83,16 @@ namespace Albon.ControllerGenerator
             ilGenerator.Emit(OpCodes.Ldarg_1);
             ilGenerator.Emit(OpCodes.Stloc, dtoLocal);
 
-            //if (isSigned)
-            //{
-            //    ilGenerator.Emit(OpCodes.Ldarg_0);
-            //    ilGenerator.Emit(OpCodes.Ldloc, dtoLocal); // Assuming 1 is the index of the DTO
-            //    ilGenerator.Emit(OpCodes.Call, signatureVerifier.GetType().GetMethod("VerifySignature", new[] { typeof(AbstractSignedDTO) }));
-            //}
-
             // Load properties from the DTO and push them onto the stack
             // assuming that the properties in the DTO match the parameters of the original method
             var properties = DTO.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             for (int i = 0; i < properties.Length; i++)
             {
-                ilGenerator.Emit(OpCodes.Ldloc, dtoLocal);
-                ilGenerator.Emit(OpCodes.Callvirt, properties[i].GetGetMethod());
+                if (properties[i].Name != "Signature" && properties[i].Name != "PublicKey" && properties[i].Name != "CallDate")
+                {
+                    ilGenerator.Emit(OpCodes.Ldloc, dtoLocal);
+                    ilGenerator.Emit(OpCodes.Callvirt, properties[i].GetGetMethod());
+                }
             }
 
             // Call the original method with the parameters
@@ -100,7 +100,7 @@ namespace Albon.ControllerGenerator
             ilGenerator.Emit(OpCodes.Ret);
         }
 
-        internal static void EmitILRedirectionFromVoid(MethodBuilder methodBuilder, MethodInfo originalMethod, ISignatureVerifier signatureVerifier, bool isSigned)
+        public void CreateRedirectionMethodFromVoid(MethodBuilder methodBuilder, MethodInfo originalMethod, bool isSigned)
         {
             ILGenerator ilGenerator = methodBuilder.GetILGenerator();
 
@@ -108,7 +108,7 @@ namespace Albon.ControllerGenerator
             {
                 ilGenerator.Emit(OpCodes.Ldarg_0);
                 ilGenerator.Emit(OpCodes.Ldarg_1); // Assuming 1 is the index of the DTO
-                ilGenerator.Emit(OpCodes.Call, signatureVerifier.GetType().GetMethod("VerifySignature", new[] { typeof(AbstractSignedDTO) }));
+                ilGenerator.Emit(OpCodes.Call, SignatureVerifier.GetType().GetMethod("VerifySignature", new[] { typeof(AbstractSignedDTO) }));
             }
 
             ilGenerator.Emit(OpCodes.Ldarg_0);

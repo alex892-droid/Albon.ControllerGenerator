@@ -17,6 +17,7 @@ namespace WebApp
             WeatherForcast = weatherForecast;
         }
 
+        [SignatureVerified]
         [HttpGet]
         public IEnumerable<WeatherForecast> GetWeatherForecastGet1()
         {

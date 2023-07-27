@@ -7,25 +7,33 @@ using System.Runtime.InteropServices;
 
 namespace Albon.ControllerGenerator
 {
-    public static class ControllerGenerator
+    public class ControllerGenerator
     {
         #region Properties
 
         private const string ModuleName = "DynamicModule";
 
-        private static FieldBuilder ServiceField { get; set; }
+        private FieldBuilder ServiceField { get; set; }
 
-        private static TypeBuilder ControllerType { get; set; }
+        private TypeBuilder ControllerType { get; set; }
 
-        internal static INamingConvention NamingConvention { get; set; }
+        private INamingConvention NamingConvention { get; set; }
 
-        internal static IRoutingConvention RoutingConvention { get; set; }
+        private IRoutingConvention RoutingConvention { get; set; }
 
-        internal static ISignatureVerifier SignatureVerifier { get; set; }
+        private ISignatureVerifier SignatureVerifier { get; set; }
 
-        private static AssemblyBuilder _dynamicAssembly;
+        private IAttributeSetter AttributeSetter { get; set; }
 
-        public static AssemblyBuilder DynamicAssembly
+        private IMethodConstructor MethodConstructor { get; set; }
+
+        private IRedirectionMethodConstructor RedirectionMethodConstructor { get; set; }
+
+        private IDTOConstructor DTOConstructor { get; set; }
+
+        private AssemblyBuilder _dynamicAssembly;
+
+        public AssemblyBuilder DynamicAssembly
         {
             get
             {
@@ -52,9 +60,9 @@ namespace Albon.ControllerGenerator
             }
         }
 
-        private static ModuleBuilder _moduleBuilder;
+        private ModuleBuilder _moduleBuilder;
 
-        public static ModuleBuilder ModuleBuilder
+        public ModuleBuilder ModuleBuilder
         {
             get
             {
@@ -69,48 +77,33 @@ namespace Albon.ControllerGenerator
 
         #endregion
 
-        public static Type CreateController<TService>()
-        {
-            return CreateController<TService>(new DefaultRoutingConvention(), new DefaultNamingConvention(), new DefaultSignatureVerifier());
-        }
+        public ControllerGenerator() : this(new DefaultRoutingConvention(), new DefaultNamingConvention(), new DefaultSignatureVerifier()) { }
 
-        public static Type CreateController<TService>(IRoutingConvention routingConvention)
-        {
-            return CreateController<TService>(routingConvention, new DefaultNamingConvention(), new DefaultSignatureVerifier());
-        }
+        public ControllerGenerator(IRoutingConvention routingConvention) : this(routingConvention, new DefaultNamingConvention(), new DefaultSignatureVerifier()) { }
 
-        public static Type CreateController<TService>(INamingConvention namingConvention)
-        {
-            return CreateController<TService>(new DefaultRoutingConvention(), namingConvention, new DefaultSignatureVerifier());
-        }
+        public ControllerGenerator(INamingConvention namingConvention) : this(new DefaultRoutingConvention(), namingConvention, new DefaultSignatureVerifier()) { }
 
-        public static Type CreateController<TService>(ISignatureVerifier signatureVerifier)
-        {
-            return CreateController<TService>(new DefaultRoutingConvention(), new DefaultNamingConvention(), signatureVerifier);
-        }
+        public ControllerGenerator(ISignatureVerifier signatureVerifier) : this(new DefaultRoutingConvention(), new DefaultNamingConvention(), signatureVerifier) { }
 
-        public static Type CreateController<TService>(IRoutingConvention routingConvention, INamingConvention namingConvention)
-        {
-            return CreateController<TService>(routingConvention, namingConvention, new DefaultSignatureVerifier());
-        }
+        public ControllerGenerator(IRoutingConvention routingConvention, INamingConvention namingConvention) : this(routingConvention, namingConvention, new DefaultSignatureVerifier()) { }
 
-        public static Type CreateController<TService>(INamingConvention namingConvention, ISignatureVerifier signatureVerifier)
-        {
-            return CreateController<TService>(new DefaultRoutingConvention(), namingConvention, signatureVerifier);
-        }
+        public ControllerGenerator(INamingConvention namingConvention, ISignatureVerifier signatureVerifier) : this(new DefaultRoutingConvention(), namingConvention, signatureVerifier) { }
 
-        public static Type CreateController<TService>(IRoutingConvention routingConvention, ISignatureVerifier signatureVerifier)
-        {
-            return CreateController<TService>(routingConvention, new DefaultNamingConvention(), signatureVerifier);
-        }
+        public ControllerGenerator(IRoutingConvention routingConvention, ISignatureVerifier signatureVerifier) : this(routingConvention, new DefaultNamingConvention(), signatureVerifier) { }
 
-        public static Type CreateController<TService>(IRoutingConvention routingConvention, INamingConvention namingConvention, ISignatureVerifier signatureVerifier)
+        public ControllerGenerator(IRoutingConvention routingConvention, INamingConvention namingConvention, ISignatureVerifier signatureVerifier)
         {
-            //Setting properties
             RoutingConvention = routingConvention;
             NamingConvention = namingConvention;
             SignatureVerifier = signatureVerifier;
+            AttributeSetter = new AttributeSetter(routingConvention, namingConvention);
+            RedirectionMethodConstructor = new RedirectionMethodConstructor(signatureVerifier);
+            DTOConstructor = new DTOConstructor(NamingConvention);
+            MethodConstructor = new MethodConstructor(signatureVerifier, RedirectionMethodConstructor, DTOConstructor, namingConvention, routingConvention, AttributeSetter);
+        }
 
+        public Type CreateController<TService>()
+        {
             //Defining type
             ControllerType = ModuleBuilder.DefineType(NamingConvention.GetControllerName<TService>(), TypeAttributes.Public | TypeAttributes.Class);
 
@@ -131,7 +124,7 @@ namespace Albon.ControllerGenerator
             return ControllerType.CreateType();
         }
 
-        private static void CreateControllerConstructor<TService>()
+        private void CreateControllerConstructor<TService>()
         {
             var serviceConstructorParameters = typeof(TService).GetConstructors().FirstOrDefault().GetParameters().Select(x => x.ParameterType).ToArray();
             // Create a constructor that takes an instance of TService and stores it in the field
@@ -149,7 +142,7 @@ namespace Albon.ControllerGenerator
             ctorIL.Emit(OpCodes.Ret);
         }
 
-        private static void AddRedirectionMethodsFromType<T>()
+        private void AddRedirectionMethodsFromType<T>()
         {
             var methods = typeof(T)
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance)
@@ -164,19 +157,19 @@ namespace Albon.ControllerGenerator
                 }
                 else if (method.GetCustomAttribute(typeof(HttpMethodAttribute)) is HttpPostAttribute)
                 {
-                    MethodConstructor.SetMethodBuilderWithDTO(method);
+                    MethodConstructor.SetMethodBuilderWithDTO(method, ControllerType, ModuleBuilder, ServiceField);
                 }
                 else if (method.GetCustomAttribute(typeof(HttpMethodAttribute)) is HttpPutAttribute)
                 {
-                    MethodConstructor.SetMethodBuilderWithDTO(method);
+                    MethodConstructor.SetMethodBuilderWithDTO(method, ControllerType, ModuleBuilder, ServiceField);
                 }
                 else if (method.GetCustomAttribute(typeof(HttpMethodAttribute)) is HttpDeleteAttribute)
                 {
-                    MethodConstructor.SetMethodBuilderWithDTO(method);
+                    MethodConstructor.SetMethodBuilderWithDTO(method, ControllerType, ModuleBuilder, ServiceField);
                 }
                 else if (method.GetCustomAttribute(typeof(HttpMethodAttribute)) is HttpPatchAttribute)
                 {
-                    MethodConstructor.SetMethodBuilderWithDTO(method);
+                    MethodConstructor.SetMethodBuilderWithDTO(method, ControllerType, ModuleBuilder, ServiceField);
                 }
             }
         }

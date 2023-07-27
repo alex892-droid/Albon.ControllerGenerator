@@ -3,12 +3,14 @@ using WebApp;
 
 var builder = WebApplication.CreateBuilder(args);
 
-ControllerGenerator.CreateController<WeatherForcastService>();
-ControllerGenerator.CreateController<WeatherForcastService2>();
+ControllerGenerator controllerGenerator = new ControllerGenerator();
+
+controllerGenerator.CreateController<WeatherForcastService>();
+controllerGenerator.CreateController<WeatherForcastService2>();
 
 // Add services to the container.
 builder.Services.AddControllers();
-builder.Services.AddMvc().AddApplicationPart(Albon.ControllerGenerator.ControllerGenerator.DynamicAssembly);
+builder.Services.AddMvc().AddApplicationPart(controllerGenerator.DynamicAssembly);
 builder.Services.AddScoped<IWeatherForecast, WeatherForcastService2>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

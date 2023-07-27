@@ -8,12 +8,29 @@ using System.Reflection.Emit;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 namespace Albon.ControllerGenerator
 {
-    internal static class MethodConstructor
+    internal class MethodConstructor : IMethodConstructor
     {
-        public static void SetHttpGetMethodBuilder(MethodInfo originalMethod, FieldBuilder ServiceField, TypeBuilder controllerType)
+        public ISignatureVerifier SignatureVerifier { get; set; }
+        public IRedirectionMethodConstructor RedirectionMethodConstructor { get; set; }
+        public IDTOConstructor DTOConstructor { get; set; }
+        public INamingConvention NamingConvention { get; set; }
+        public IRoutingConvention RoutingConvention { get; set; }
+        public IAttributeSetter AttributeSetter { get; set; }
+        public MethodConstructor(ISignatureVerifier signatureVerifier, IRedirectionMethodConstructor redirectionMethodConstructor, IDTOConstructor dtoConstructor, INamingConvention namingConvention, IRoutingConvention routingConvention, IAttributeSetter attributeSetter)
+        {
+            SignatureVerifier = signatureVerifier;
+            RedirectionMethodConstructor = redirectionMethodConstructor;
+            DTOConstructor = dtoConstructor;
+            NamingConvention = namingConvention;
+            RoutingConvention = routingConvention;
+            AttributeSetter = attributeSetter;
+        }
+
+        public void SetHttpGetMethodBuilder(MethodInfo originalMethod, FieldBuilder ServiceField, TypeBuilder controllerType)
         {
             var parameterTypes = originalMethod.GetParameters().Select(x => x.ParameterType).ToList();
             var parameterNames = originalMethod.GetParameters().Select(x => x.Name).ToList();
@@ -32,7 +49,7 @@ namespace Albon.ControllerGenerator
             var paramNames = parameterNames.ToArray();
 
             MethodBuilder methodBuilder = controllerType.DefineMethod(
-            ControllerGenerator.NamingConvention.GetMethodName(originalMethod.Name),
+            NamingConvention.GetMethodName(originalMethod.Name),
             originalMethod.Attributes,
             originalMethod.CallingConvention,
             originalMethod.ReturnType,
@@ -55,12 +72,12 @@ namespace Albon.ControllerGenerator
                 }
             }
 
-            ILEmitter.EmitILRedirectionFromParameters(methodBuilder, paramTypes, originalMethod, ServiceField, ControllerGenerator.SignatureVerifier, signed);
+            RedirectionMethodConstructor.CreateRedirectionMethodFromParameters(methodBuilder, paramTypes, originalMethod, ServiceField, signed);
             AttributeSetter.SetHttpMethodAttribute(originalMethod, methodBuilder);
-            AttributeSetter.SetRouteAttribute(methodBuilder, originalMethod, ControllerGenerator.RoutingConvention, ControllerGenerator.NamingConvention, signed);
+            AttributeSetter.SetRouteAttribute(methodBuilder, originalMethod, signed);
         }
 
-        internal static void SetMethodBuilderWithDTO(MethodInfo originalMethod)
+        public void SetMethodBuilderWithDTO(MethodInfo originalMethod, TypeBuilder controllerType, ModuleBuilder moduleBuilder, FieldBuilder serviceField)
         {
             var parameters = originalMethod.GetParameters();
 
@@ -71,10 +88,8 @@ namespace Albon.ControllerGenerator
                 var parametersType = new Type[] { };
                 if (originalMethod.GetCustomAttribute(typeof(SignatureVerifiedAttribute)) is not null)
                 {
-                    parametersType = new Type[1] { typeof(DateTime) };
-
-                    DTOType = CreateSignedDTOFromParametersType(parametersType, new string[] { "callDate" }, originalMethod.Name, true);
-                    methodBuilder = ControllerType.DefineMethod(
+                    DTOType = DTOConstructor.CreateDTO(originalMethod, moduleBuilder, true);
+                    methodBuilder = controllerType.DefineMethod(
                         NamingConvention.GetMethodName(originalMethod.Name),
                         originalMethod.Attributes,
                         originalMethod.CallingConvention,
@@ -86,11 +101,11 @@ namespace Albon.ControllerGenerator
                     var parameterBuilder = methodBuilder.DefineParameter(1, ParameterAttributes.None, DTOType.Name);
                     AttributeSetter.SetFromBodyAttribute(parameterBuilder);
 
-                    ILEmitter.EmitILRedirectionFromVoid(methodBuilder, originalMethod, SignatureVerifier, true);
+                    RedirectionMethodConstructor.CreateRedirectionMethodFromVoid(methodBuilder, originalMethod, true);
                 }
                 else
                 {
-                    methodBuilder = ControllerType.DefineMethod(
+                    methodBuilder = controllerType.DefineMethod(
                         NamingConvention.GetMethodName(originalMethod.Name),
                         originalMethod.Attributes,
                         originalMethod.CallingConvention,
@@ -98,45 +113,31 @@ namespace Albon.ControllerGenerator
                         parametersType
                         );
 
-                    ILEmitter.EmitILRedirectionFromVoid(methodBuilder, originalMethod, SignatureVerifier, false);
+                    RedirectionMethodConstructor.CreateRedirectionMethodFromVoid(methodBuilder, originalMethod, false);
                 }
             }
             else
             {
-                bool isSigned = false;
-                if (originalMethod.GetCustomAttribute(typeof(SignatureVerifiedAttribute)) is not null)
-                {
-                    DTOType = CreateSignedDTOFromParametersType(parameters.Select(x => x.ParameterType).ToArray(), parameters.Select(x => x.Name).ToArray(), originalMethod.Name, true);
-                    methodBuilder = ControllerType.DefineMethod(
-                        NamingConvention.GetMethodName(originalMethod.Name),
-                        originalMethod.Attributes,
-                        originalMethod.CallingConvention,
-                        originalMethod.ReturnType,
-                        new Type[] { DTOType }
-                        );
-                    isSigned = true;
-                }
-                else
-                {
-                    DTOType = CreateDTO(originalMethod);
-                    methodBuilder = ControllerType.DefineMethod(
-                        NamingConvention.GetMethodName(originalMethod.Name),
-                        originalMethod.Attributes,
-                        originalMethod.CallingConvention,
-                        originalMethod.ReturnType,
-                        new Type[] { DTOType }
-                        );
-                }
+                bool isSigned = originalMethod.GetCustomAttribute(typeof(SignatureVerifiedAttribute)) is not null;
+
+                DTOType = DTOConstructor.CreateDTO(originalMethod, moduleBuilder, isSigned);
+                methodBuilder = controllerType.DefineMethod(
+                    NamingConvention.GetMethodName(originalMethod.Name),
+                    originalMethod.Attributes,
+                    originalMethod.CallingConvention,
+                    originalMethod.ReturnType,
+                    new Type[] { DTOType }
+                    );
 
                 // Define the parameter names and attributes for the new method
                 var parameterBuilder = methodBuilder.DefineParameter(1, ParameterAttributes.None, DTOType.Name);
                 AttributeSetter.SetFromBodyAttribute(parameterBuilder);
 
-                ILEmitter.EmitILRedirectionFromDTO(methodBuilder, DTOType, originalMethod, ServiceField, SignatureVerifier, isSigned);
+                RedirectionMethodConstructor.CreateRedirectionMethodFromDTO(methodBuilder, DTOType, originalMethod, serviceField, isSigned);
             }
 
             AttributeSetter.SetHttpMethodAttribute(originalMethod, methodBuilder);
-            AttributeSetter.SetRouteAttribute(methodBuilder, originalMethod, RoutingConvention, NamingConvention, false);
+            AttributeSetter.SetRouteAttribute(methodBuilder, originalMethod, false);
         }
     }
 }

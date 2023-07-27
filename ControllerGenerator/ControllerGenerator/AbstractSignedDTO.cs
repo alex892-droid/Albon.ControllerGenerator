@@ -15,6 +15,8 @@ namespace Albon.ControllerGenerator
         [JsonIgnore]
         public string PublicKey { get; set; }
 
+        public DateTime CallDate { get; set; }
+
         public string GetMessage()
         {
             return JsonConvert.SerializeObject(this);
